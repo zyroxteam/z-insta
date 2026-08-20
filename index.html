@@ -368,7 +368,7 @@ function renderResult(uname,d){
         <div class="lock">🔒</div>
         <h3>Private Account</h3>
         <div class="private-profile">
-          <div class="pp">${pp?`<img src="${esc(pp)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}</div>
+          <div class="pp">${pp?`<img src="/api/image?url=${encodeURIComponent(pp)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}</div>
           <div class="who">
             <b>@${esc(d.username||uname)} ${verified}</b>
             <span>${name}</span>
@@ -409,7 +409,7 @@ function renderResult(uname,d){
   // ── SUCCESS — PUBLIC WITH POSTS ─────────────────────────────────
   sc.innerHTML = `
     <div class="profile-head">
-      <div class="profile-pic">${pp?`<img src="${esc(pp)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}</div>
+      <div class="profile-pic">${pp?`<img src="/api/image?url=${encodeURIComponent(pp)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}</div>
       <div class="profile-info">
         <h2>@${esc(d.username||uname)} ${verified}</h2>
         ${name?`<p style="color:var(--txt);font-weight:600">${name}</p>`:''}
@@ -428,20 +428,20 @@ function renderResult(uname,d){
     const card = document.createElement('div');
     card.className='post-card';
     card.style.animationDelay = (i*.04)+'s';
-    const safeUrl = esc(url);
-    const jsUrl = url.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const proxied = `/api/image?url=${encodeURIComponent(url)}`;
+    const proxiedDL = `/api/image?url=${encodeURIComponent(url)}&download=1`;
     card.innerHTML = `
       <div class="post-top">
         <span class="post-id" title="${esc(pid)}">#${esc(pid.slice(0,12))}…</span>
         <span class="post-num">#${i}</span>
       </div>
-      <div class="img-wrap" onclick="openLB('${jsUrl}')">
-        <img src="${safeUrl}" alt="post ${i}" loading="lazy" referrerpolicy="no-referrer"
-          onerror="this.parentElement.innerHTML='<div style=&quot;color:#777;padding:40px;text-align:center&quot;>⚠️ Image blocked by Instagram CORS<br><a href=&quot;${safeUrl}&quot; target=&quot;_blank&quot; style=&quot;color:#00f0ff&quot;>Open directly</a></div>'">
+      <div class="img-wrap" onclick="openLB('${proxied}')">
+        <img src="${proxied}" alt="post ${i}" loading="lazy"
+          onerror="this.parentElement.innerHTML='<div style=&quot;color:#777;padding:40px;text-align:center&quot;>⚠️ Could not load image<br><a href=&quot;${proxied}&quot; target=&quot;_blank&quot; style=&quot;color:#00f0ff&quot;>Open directly</a></div>'">
       </div>
       <div class="post-footer">
-        <a class="dl-btn" href="${safeUrl}" target="_blank" rel="noopener" download="${esc(pid)}.jpg">📥 Download</a>
-        <button class="vw-btn" onclick="openLB('${jsUrl}')">🔍 View</button>
+        <a class="dl-btn" href="${proxiedDL}" download="${esc(pid)}.jpg">📥 Download</a>
+        <button class="vw-btn" onclick="openLB('${proxied}')">🔍 View</button>
       </div>`;
     gal.appendChild(card);
   }
