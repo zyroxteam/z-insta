@@ -1,0 +1,11 @@
+{
+  "name": "zyro-insta",
+  "version": "1.0.0",
+  "description": "⚡ ZYROX Instagram Gallery Extractor — web UI + CLI (POC)",
+  "main": "api/fetch.js",
+  "scripts": {
+    "start": "npx vercel dev",
+    "dev": "npx http-server -p 3001 -c-1"
+  },
+  "license": "MIT"
+}
