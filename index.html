@@ -193,13 +193,59 @@ body{
 .private-profile .who span{color:var(--dim);font-size:.9em}
 .verified{color:var(--neon-c);margin-left:4px}
 
-/* INFO BOX (neutral, e.g. no posts but public) */
-.info-box{
-  padding:25px;text-align:center;
-  background:linear-gradient(145deg,rgba(0,240,255,.06),rgba(57,255,20,.04));
-  border:1px solid rgba(0,240,255,.25);border-radius:15px;color:var(--neon-c);
+/* ARCHIVE SECTION (private accounts) */
+.archive-btn{
+  margin-top:18px;padding:11px 24px;
+  background:linear-gradient(135deg,var(--neon-g),var(--neon-c));
+  border:none;border-radius:12px;color:#0a0a14;font-weight:800;
+  font-size:.95em;letter-spacing:.5px;cursor:pointer;
+  box-shadow:0 4px 18px rgba(57,255,20,.3);transition:all .3s;
 }
-.info-box .big{font-size:2em;margin-bottom:10px}
+.archive-btn:hover{transform:translateY(-2px);box-shadow:0 6px 22px rgba(57,255,20,.45)}
+.archive-btn:disabled{opacity:.5;cursor:wait;transform:none}
+.archive-results{
+  margin-top:18px;text-align:left;
+  background:rgba(0,0,0,.3);border:1px solid rgba(57,255,20,.2);
+  border-radius:14px;padding:18px;display:none;
+}
+.archive-results.show{display:block;animation:pop .4s}
+.archive-results h4{color:var(--neon-g);margin-bottom:10px;font-size:1em;letter-spacing:1px}
+.archive-results .warn{
+  background:rgba(255,180,0,.08);border:1px solid rgba(255,180,0,.25);
+  border-radius:10px;padding:12px;margin-bottom:14px;color:#ffe600;font-size:.88em;line-height:1.4
+}
+.archive-list{list-style:none;display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;padding-right:4px}
+.archive-list li{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;transition:all .2s
+}
+.archive-list li:hover{background:rgba(0,240,255,.06);border-color:rgba(0,240,255,.3)}
+.archive-list li .type{
+  padding:3px 10px;border-radius:6px;font-size:.75em;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;flex-shrink:0
+}
+.archive-list li .type.img{background:rgba(255,0,229,.2);color:#ff00e5}
+.archive-list li .type.page{background:rgba(0,240,255,.2);color:#00f0ff}
+.archive-list li .date{color:var(--dim);font-family:monospace;font-size:.88em;flex-shrink:0}
+.archive-list li a{
+  color:var(--neon-c);text-decoration:none;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1
+}
+.archive-list li a:hover{color:var(--neon-p);text-decoration:underline}
+.archive-links-row{
+  display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08)
+}
+.ext-link{
+  display:inline-block;padding:8px 14px;
+  background:linear-gradient(145deg,rgba(0,240,255,.1),rgba(255,0,229,.1));
+  border:1px solid rgba(0,240,255,.25);border-radius:8px;
+  color:var(--neon-c);text-decoration:none;font-size:.85em;font-weight:700;
+  transition:all .3s;flex:1;min-width:150px;text-align:center
+}
+.ext-link:hover{background:rgba(0,240,255,.18);border-color:var(--neon-c);transform:translateY(-1px)}
+.no-snaps{color:var(--dim);text-align:center;padding:10px;font-size:.9em}
 
 /* GALLERY */
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:25px;padding:5px}
@@ -380,8 +426,11 @@ function renderResult(uname,d){
           <div class="stat">👥 Followers: <b>${fmt(d.followerCount)}</b></div>
           <div class="stat">➡️ Following: <b>${fmt(d.followingCount)}</b></div>
         </div>
-        <p style="margin-top:14px;font-size:.85em;color:var(--dim)">
-          ⚡ ZYROX cannot access private content without login. Follow them on Instagram first to see their posts.
+        <button class="archive-btn" id="arcBtn" onclick="lookupArchive('${esc(d.username||uname)}')">🗄️ Check Public Archives (Wayback / Google Cache)</button>
+        <div id="archiveBox" class="archive-results"></div>
+        <p style="margin-top:14px;font-size:.82em;color:var(--dim);line-height:1.5">
+          ⚠️ <b style="color:#ff6b6b">Warning:</b> Any website claiming "view private Instagram instantly" is a <b>scam / phishing / malware</b>. Don't enter your password.
+          ZYROX only checks public web archives (Wayback Machine, archive.ph, Google cache) which may contain <i>historical</i> snapshots if the account was ever public in the past.
         </p>
       </div>`;
     return;
@@ -451,6 +500,43 @@ function openLB(url){ const lb=$('lightbox'); $('lbImg').src=url; lb.classList.a
 function closeLB(e){ if(e.target.id==='lightbox') e.target.classList.remove('active'); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('lightbox').classList.remove('active'); });
 $('username').addEventListener('keydown',e=>{ if(e.key==='Enter') fetchProfile(); });
+
+async function lookupArchive(uname){
+  const btn=$('arcBtn'); const box=$('archiveBox');
+  btn.disabled=true; btn.textContent='⏳ Searching archives...';
+  box.classList.add('show');
+  box.innerHTML=`<div class="loader" style="padding:20px"><div class="spinner"></div><span>Querying Wayback Machine, Google Cache & archive.ph…</span></div>`;
+  try{
+    const r=await fetch(`/api/archive?u=${encodeURIComponent(uname)}`);
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error||'lookup failed');
+    const snaps=d.waybackSnapshots||[];
+    let html=`<div class="warn">⚠️ These are historical snapshots only — not current content. Anything found is from when the account was previously public.</div>`;
+    if(snaps.length){
+      html+=`<h4>🗃️ Found ${snaps.length} cached snapshot(s):</h4><ul class="archive-list">`;
+      for(const s of snaps){
+        let icon,type,label;
+        if(s.kind==='image'){ icon='🖼️'; type='img'; label='Image / Post'; }
+        else if(s.kind==='post'){ icon='📸'; type='page'; label='Post page'; }
+        else { icon='👤'; type='page'; label='Profile page'; }
+        html+=`<li><span class="type ${type}">${icon} ${label}</span><span class="date">${s.date}</span><a href="${s.view}" target="_blank" rel="noopener">Open snapshot →</a></li>`;
+      }
+      html+=`</ul>`;
+    } else {
+      html+=`<div class="no-snaps">😕 No cached snapshots found in the Wayback Machine for this account.</div>`;
+    }
+    html+=`<div class="archive-links-row">
+      <a class="ext-link" href="${d.waybackLatest}" target="_blank" rel="noopener">🌐 Wayback (latest)</a>
+      <a class="ext-link" href="${d.archiveTodayURL}" target="_blank" rel="noopener">📚 archive.ph</a>
+      <a class="ext-link" href="${d.googleCacheURL}" target="_blank" rel="noopener">🔍 Google Cache search</a>
+    </div>`;
+    box.innerHTML=html;
+  }catch(e){
+    box.innerHTML=`<div class="error-box"><div class="big">⚠️</div><p>Archive lookup failed: ${esc(e.message)}</p></div>`;
+  }finally{
+    btn.disabled=false; btn.textContent='🔄 Search again';
+  }
+}
 </script>
 </body>
 </html>
