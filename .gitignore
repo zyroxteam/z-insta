@@ -4,3 +4,4 @@ zyro_gallery_*.html
 zyro_*_urls.txt
 __pycache__/
 *.pyc
+.vercel
