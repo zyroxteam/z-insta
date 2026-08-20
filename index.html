@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZYROX — Instagram Private Gallery</title>
+<title>ZYROX — Instagram Gallery Extractor</title>
 <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -170,6 +170,37 @@ body{
 }
 .error-box .big{font-size:2em;margin-bottom:10px}
 
+/* PRIVATE PROFILE CARD */
+.private-box{
+  padding:35px 25px;text-align:center;
+  background:linear-gradient(145deg,rgba(255,180,0,.06),rgba(255,0,229,.05));
+  border:1px solid rgba(255,180,0,.35);border-radius:20px;
+  position:relative;
+}
+.private-box .lock{
+  font-size:4em;margin-bottom:10px;display:inline-block;
+  filter:drop-shadow(0 0 20px rgba(255,180,0,.6));
+  animation:lockpulse 2.5s ease-in-out infinite;
+}
+@keyframes lockpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.private-box h3{font-size:1.6em;background:linear-gradient(135deg,#ffe600,#ff00e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.private-box p{color:var(--dim);margin-top:6px}
+.private-profile{display:flex;align-items:center;gap:16px;justify-content:center;margin:15px 0}
+.private-profile .pp{width:64px;height:64px;border-radius:50%;padding:3px;background:linear-gradient(135deg,var(--neon-c),var(--neon-p));box-shadow:0 0 20px rgba(0,240,255,.4)}
+.private-profile .pp img{width:100%;height:100%;border-radius:50%;object-fit:cover;background:#000}
+.private-profile .who{text-align:left}
+.private-profile .who b{font-size:1.15em;display:block}
+.private-profile .who span{color:var(--dim);font-size:.9em}
+.verified{color:var(--neon-c);margin-left:4px}
+
+/* INFO BOX (neutral, e.g. no posts but public) */
+.info-box{
+  padding:25px;text-align:center;
+  background:linear-gradient(145deg,rgba(0,240,255,.06),rgba(57,255,20,.04));
+  border:1px solid rgba(0,240,255,.25);border-radius:15px;color:var(--neon-c);
+}
+.info-box .big{font-size:2em;margin-bottom:10px}
+
 /* GALLERY */
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:25px;padding:5px}
 .post-card{
@@ -317,24 +348,77 @@ async function fetchProfile(){
   }
 }
 
+function esc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmt(n){if(n==null)return '—';return n.toLocaleString('en-US')}
+
 function renderResult(uname,d){
   const sc = $('statusCard');
   const gal = $('gallery');
+  gal.innerHTML = '';
   const cnt = Object.keys(d.images||{}).length;
-  if(!cnt){
-    sc.innerHTML = `<div class="error-box"><div class="big">⚠️</div><p>No posts could be extracted for <b>@${uname}</b>.<br>Account may be private, invalid, or Instagram is blocking automated requests.</p></div>`;
+  const name = esc(d.fullName||'');
+  const verified = d.verified ? '<span class="verified" title="Verified">✓</span>' : '';
+  const bio = esc(d.bio||'');
+  const pp = d.profilePic || '';
+
+  // ── PRIVATE ACCOUNT ─────────────────────────────────────────────
+  if(d.private){
+    sc.innerHTML = `
+      <div class="private-box">
+        <div class="lock">🔒</div>
+        <h3>Private Account</h3>
+        <div class="private-profile">
+          <div class="pp">${pp?`<img src="${esc(pp)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}</div>
+          <div class="who">
+            <b>@${esc(d.username||uname)} ${verified}</b>
+            <span>${name}</span>
+          </div>
+        </div>
+        <p style="margin-top:8px">This account is <b style="color:#ffe600">private</b> — posts are only visible to approved followers.</p>
+        <div class="stats-row" style="justify-content:center;margin-top:15px">
+          <div class="stat">📸 Posts: <b>${fmt(d.postCount)}</b></div>
+          <div class="stat">👥 Followers: <b>${fmt(d.followerCount)}</b></div>
+          <div class="stat">➡️ Following: <b>${fmt(d.followingCount)}</b></div>
+        </div>
+        <p style="margin-top:14px;font-size:.85em;color:var(--dim)">
+          ⚡ ZYROX cannot access private content without login. Follow them on Instagram first to see their posts.
+        </p>
+      </div>`;
     return;
   }
+
+  // ── PUBLIC BUT NO POSTS RETURNED ────────────────────────────────
+  if(!cnt){
+    sc.innerHTML = `
+      <div class="info-box">
+        <div class="big">📭</div>
+        <p><b>@${esc(d.username||uname)}</b> is public but no posts could be extracted.</p>
+        <p style="margin-top:8px;font-size:.9em;color:var(--dim)">
+          The account may have zero posts, or Instagram may be temporarily blocking this automated request.<br>
+          Wait 1–2 minutes and try again.
+        </p>
+        ${d.followerCount!=null?`<div class="stats-row" style="justify-content:center;margin-top:15px">
+          <div class="stat">👥 Followers: <b>${fmt(d.followerCount)}</b></div>
+          <div class="stat">➡️ Following: <b>${fmt(d.followingCount)}</b></div>
+          <div class="stat">📸 Total: <b>${fmt(d.postCount)}</b></div>
+        </div>`:''}
+      </div>`;
+    return;
+  }
+
+  // ── SUCCESS — PUBLIC WITH POSTS ─────────────────────────────────
   sc.innerHTML = `
     <div class="profile-head">
-      <div class="profile-pic"><img src="${d.profilePic||''}" onerror="this.style.display='none'" alt=""></div>
+      <div class="profile-pic">${pp?`<img src="${esc(pp)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}</div>
       <div class="profile-info">
-        <h2>@${uname}</h2>
-        <p>${(d.bio||'').replace(/</g,'&lt;')}</p>
+        <h2>@${esc(d.username||uname)} ${verified}</h2>
+        ${name?`<p style="color:var(--txt);font-weight:600">${name}</p>`:''}
+        ${bio?`<p>${bio}</p>`:''}
         <div class="stats-row">
-          <div class="stat">📸 Posts: <b>${cnt}</b></div>
+          <div class="stat">📸 Posts extracted: <b>${cnt}</b></div>
+          <div class="stat">👥 Followers: <b>${fmt(d.followerCount)}</b></div>
           <div class="stat">🎯 Resolution: <b>Highest</b></div>
-          <div class="stat">✅ Status: <b style="color:var(--neon-g)">Extracted</b></div>
+          <div class="stat">✅ Status: <b style="color:var(--neon-g)">Success</b></div>
         </div>
       </div>
     </div>`;
@@ -343,18 +427,21 @@ function renderResult(uname,d){
     i++;
     const card = document.createElement('div');
     card.className='post-card';
-    card.style.animationDelay = (i*.05)+'s';
+    card.style.animationDelay = (i*.04)+'s';
+    const safeUrl = esc(url);
+    const jsUrl = url.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
     card.innerHTML = `
       <div class="post-top">
-        <span class="post-id" title="${pid}">#${pid.slice(0,12)}…</span>
+        <span class="post-id" title="${esc(pid)}">#${esc(pid.slice(0,12))}…</span>
         <span class="post-num">#${i}</span>
       </div>
-      <div class="img-wrap" onclick="openLB('${url.replace(/'/g,"\\'")}')">
-        <img src="${url}" alt="post ${i}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div style=\\'color:#777;padding:40px\\'>⚠️ Image blocked by Instagram CORS</div>'">
+      <div class="img-wrap" onclick="openLB('${jsUrl}')">
+        <img src="${safeUrl}" alt="post ${i}" loading="lazy" referrerpolicy="no-referrer"
+          onerror="this.parentElement.innerHTML='<div style=&quot;color:#777;padding:40px;text-align:center&quot;>⚠️ Image blocked by Instagram CORS<br><a href=&quot;${safeUrl}&quot; target=&quot;_blank&quot; style=&quot;color:#00f0ff&quot;>Open directly</a></div>'">
       </div>
       <div class="post-footer">
-        <a class="dl-btn" href="${url}" target="_blank" rel="noopener" download="${pid}.jpg">📥 Download</a>
-        <button class="vw-btn" onclick="openLB('${url.replace(/'/g,"\\'")}')">🔍 View</button>
+        <a class="dl-btn" href="${safeUrl}" target="_blank" rel="noopener" download="${esc(pid)}.jpg">📥 Download</a>
+        <button class="vw-btn" onclick="openLB('${jsUrl}')">🔍 View</button>
       </div>`;
     gal.appendChild(card);
   }
